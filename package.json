@@ -1,0 +1,40 @@
+{
+  "name": "broadcastt-js",
+  "version": "0.1.0",
+  "description": "JavaScript library for Broadcastt WebSocket Protocol",
+  "main": "dist/broadcastt.js",
+  "license": "MIT",
+  "scripts": {
+    "compile": "./node_modules/.bin/rollup -c",
+    "prepare": "npm run compile"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nerg4l/broadcastt-js"
+  },
+  "keywords": [
+    "broadcastt",
+    "client",
+    "websocket",
+    "http",
+    "events",
+    "pubsub"
+  ],
+  "author": {
+    "name": "László Görög"
+  },
+  "homepage": "https://github.com/Nerg4l/broadcastt-js",
+  "engines": {
+    "node": ">6.0.*"
+  },
+  "devDependencies": {
+    "@types/jest": "^22.1.0",
+    "@types/node": "^6.0.85",
+    "babel-plugin-transform-object-assign": "^6.8.0",
+    "babel-preset-es2015-rollup": "^3.0.0",
+    "babel-preset-stage-2": "^6.5.0",
+    "rollup-plugin-babel": "^2.4.0",
+    "rollup-plugin-typescript": "^0.7.5",
+    "rollup": "^0.31.0"
+  }
+}
