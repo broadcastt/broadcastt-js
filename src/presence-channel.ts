@@ -29,7 +29,7 @@ export default class PresenceChannel extends PrivateChannel {
             event: 'broadcastt_internal:subscription_succeeded',
             callback: (e) => {
                 this.status = "subscribed";
-                this.members = Object.assign({}, this.members, e.members);
+                this.members = Object.assign({}, this.members, e.presence);
                 this.onhere(this.members);
             },
         });
