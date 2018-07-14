@@ -1,6 +1,6 @@
 {
   "name": "broadcastt-js",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JavaScript library for Broadcastt WebSocket Protocol",
   "main": "dist/broadcastt.js",
   "license": "MIT",
