@@ -1,26 +1,37 @@
-import Channel from "./channel";
+import Channel from './channel';
 
 export default class PrivateChannel extends Channel {
 
+    /**
+     * Sends an event to the protected channel
+     *
+     * @param event Name of the event
+     * @param data Data of the event
+     */
     public send(event: string, data) {
-        this.shared.socket.send(JSON.stringify({
+        if (event.startsWith('broadcastt:')) {
+            console.warn('You can not send broadcastt events', event);
+            return this;
+        } else if (event.startsWith('broadcastt_internal:')) {
+            console.warn('You can not send internal broadcastt events', event);
+            return this;
+        }
+
+        this._shared.socket.send(JSON.stringify({
             event: event,
             data: data,
             channel: this.name
         }));
+
+        return this;
     }
 
-    public subscribe(): this {
-        if (this.status !== "none") {
-            return this;
-        }
-        this.status = "pending";
-
+    protected onSubscribe(): void {
         const xmlHttp = new XMLHttpRequest();
-        xmlHttp.open('POST', this.auth_endpoint);
+        xmlHttp.open('POST', this._shared.auth_endpoint);
         xmlHttp.setRequestHeader('Content-Type', 'application/json');
-        if (this.shared.csrf) {
-            xmlHttp.setRequestHeader('X-CSRF-TOKEN', this.shared.csrf);
+        if (this._shared.csrf) {
+            xmlHttp.setRequestHeader('X-CSRF-TOKEN', this._shared.csrf);
         }
         xmlHttp.onload = () => {
             if (xmlHttp.status === 200 && xmlHttp.responseText) {
@@ -31,18 +42,16 @@ export default class PrivateChannel extends Channel {
         let name = this.name;
 
         xmlHttp.send(JSON.stringify({
-            socket_id: this.shared.socket_id,
+            socket_id: this._shared.socket_id,
             channel_name: name
         }));
-
-        return this;
     }
 
     protected onAjaxSuccess(response): void {
         const data = Object.assign({}, response);
         data.channel = this.name;
 
-        this.shared.socket.send(JSON.stringify({
+        this._shared.socket.send(JSON.stringify({
             event: 'broadcastt:subscribe',
             data: data,
         }));

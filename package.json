@@ -1,6 +1,6 @@
 {
   "name": "broadcastt-js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "JavaScript library for Broadcastt WebSocket Protocol",
   "main": "dist/broadcastt.js",
   "license": "MIT",
@@ -28,7 +28,6 @@
     "node": ">6.0.*"
   },
   "devDependencies": {
-    "@types/jest": "^22.1.0",
     "@types/node": "^6.0.85",
     "babel-plugin-transform-object-assign": "^6.8.0",
     "babel-preset-es2015-rollup": "^3.0.0",

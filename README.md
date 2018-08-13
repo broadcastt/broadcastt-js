@@ -1,6 +1,6 @@
 # Broadcastt
 
-Realtime web applications are the future. [Broadcastt](https://broadcastt.xyz/) provides tools to help you develop realtime applications.
+Realtime web applications are the future. [Broadcastt](https://broadcastt.xyz/) provides tools to help developers create realtime applications.
 
 ## Javascript Client Library
 
@@ -76,7 +76,7 @@ Default value: `3000`
 
 Can only be used by our development team, because the value given by you will be overridden after connection with the value sent by the server.
 
-Default value: 120
+Default value: `120`
 
 #### `pong_timeout` (Number)
 
@@ -84,7 +84,7 @@ Determines the acceptable timeout for the pong message sent by the server for a 
 
 May become deprecated in later versions because RFC 6455 has Control Frames for ping and pong messages.
 
-Default value: 30
+Default value: `30`
 
 #### `auth_endpoint` (Number)
 
@@ -174,15 +174,7 @@ channel.bind('event-name', (payload) => {
 });
 ```
 
-You can also create named bindings by adding a third parameter.
-
-```javascript
-channel.bind('event-name', (payload) => {
-    // Do what you want
-}, 'special-name');
-```
-
-Several callbacks can be added to the same event and to the same named binding.
+Several callbacks can be added to the same event.
 
 #### Unbind
 
@@ -192,18 +184,24 @@ You can remove all event bindings by calling `unbind` method on a channel object
 channel.unbind();
 ```
 
-You can also use the `unbind` method to remove every named bindings or non-named bindings of a event by calling it with a string parameter.
+You can also use the `unbind` method to remove every bindings of a event by calling it with a string parameter.
 
 ```javascript
-channel.unbind('event-name-or-special-name');
+channel.unbind('event-name');
 ```
 
-Further more the `unbind` method can remove a specific callback by calling it with that callback as a parameter.
+Also the `unbind` method can remove a specific callback by calling it with that callback as a parameter.
 
 ```javascript
-channel.unbind(your-callback-object);
+channel.unbind(null, your-callback-object);
 ```
 
-### Contributing
+Further more you can remove a specific callback from an event by passing the name and the callback.
+
+```javascript
+channel.unbind('event-name', your-callback-object);
+```
+
+## Contributing
 
 We welcome everyone who would help us to make this library "Harder, Better, Faster, Stronger".

@@ -1,20 +1,22 @@
-import Channel from "./channel";
-import PrivateChannel from "./private-channel";
-import PresenceChannel from "./presence-channel";
+import Channel from './channel';
+import PrivateChannel from './private-channel';
+import PresenceChannel from './presence-channel';
 
 export default class Broadcastt {
     private static SECOND = 1000;
 
-    private key: string;
-    private reconnect: number;
-    private options: any;
-    private status: string;
-    private shared: {
+    private _key: string;
+    private _reconnect: number;
+    private _options: any;
+    private _status: string;
+    private _shared: {
         csrf: string,
         channels: Channel[],
         socket: WebSocket,
         socket_id: any,
+        auth_endpoint: string,
     };
+    private _errorCode: number;
     private _activityTimer;
 
     private static defaultOptions = {
@@ -31,124 +33,127 @@ export default class Broadcastt {
     };
 
     constructor(key: string, options?: any) {
-        this.key = key;
-        this.reconnect = 0;
+        this._key = key;
+        this._reconnect = 0;
 
-        this.options = Object.assign({}, Broadcastt.defaultOptions, options);
+        this._options = Object.assign({}, Broadcastt.defaultOptions, options);
         if (options.port === undefined && options.encrypted === false) {
-            this.options.port = 80;
+            this._options.port = 80;
         }
 
-        this.status = "connecting";
-        this.shared = {
-            csrf: this.options.csrf,
+        this._status = 'connecting';
+        this._shared = {
+            csrf: this._options.csrf,
             channels: [],
             socket: null,
             socket_id: null,
+            auth_endpoint: this._options.auth_endpoint,
         };
 
         this.init();
     }
 
     protected init(): void {
-        const protocol = this.options.encrypted ? 'wss' : 'ws';
+        const scheme = this._options.encrypted ? 'wss' : 'ws';
 
-        const url = protocol + '://' + this.options.host + ':' + this.options.port + '/apps/' + this.key;
+        const url = scheme + '://' + this._options.host + ':' + this._options.port + '/apps/' + this._key;
 
-        this.shared.socket = new WebSocket(url);
+        this._shared.socket = new WebSocket(url);
 
-        this.shared.socket.onopen = (e) => {
+        this._shared.socket.onopen = (e) => {
             this.onopen(e);
         };
 
-        this.shared.socket.onerror = (e) => {
+        this._shared.socket.onerror = (e) => {
             this.onerror(e);
         };
 
-        this.shared.socket.onmessage = (e) => {
+        this._shared.socket.onmessage = (e) => {
             const payload = JSON.parse(e.data);
-            if (payload.event === 'broadcastt:connection_established') {
-                const data = JSON.parse(payload.data);
-                this.options.activity_timeout = data.activity_timeout;
-                this.shared.socket_id = data.socket_id;
-                this.activityCheck();
-                this.status = "connected";
-
-                this.shared.channels.forEach((channel) => {
-                    channel.subscribe();
-                });
-                return;
-            }
-
             this.onmessage(payload);
         };
 
-        this.shared.socket.onclose = (e) => {
+        this._shared.socket.onclose = (e) => {
             this.onclose(e);
         };
     }
 
     private onopen(e): void {
-        this.reconnect = 0;
+        this._reconnect = 0;
 
-        if (this.options.debug) {
+        if (this._options.debug) {
             console.log('Broadcastt: Connected')
         }
     }
 
     private onmessage(payload): void {
-        if (payload.event === 'broadcastt:pong') {
-            this.activityCheck();
-            return;
+        switch (payload.event) {
+            case 'broadcastt:connection_established':
+                const data = JSON.parse(payload.data);
+                this._options.activity_timeout = data.activity_timeout;
+                this._shared.socket_id = data.socket_id;
+                this.activityCheck();
+                this._status = 'connected';
+
+                this._shared.channels.forEach((channel) => {
+                    if (channel.status === 'unsubscribed') {
+                        return;
+                    }
+                    channel.subscribe();
+                });
+                return;
+            case 'broadcastt:pong':
+                this.activityCheck();
+                return;
+            case 'broadcastt:error':
+                this._status = 'error';
+                this._errorCode = payload.data.code;
+                if (payload.data.code !== undefined) {
+                    this._shared.socket.close(payload.data.code, payload.data.message);
+                }
+                return;
         }
 
-        if (payload.event === 'broadcastt:error') {
-            this.status = "error";
-            this.shared.socket.close(payload.data.code, payload.data.message);
-            return;
-        }
-
-        this.shared.channels.forEach((channel) => {
+        this._shared.channels.forEach((channel) => {
             if (channel.name !== payload.channel) {
                 return;
             }
 
-            channel.listeners.forEach((listener) => {
-                if (listener.event !== payload.event) {
-                    return;
-                }
-
-                listener.callback(JSON.parse(payload.data));
-            });
-        })
+            channel.emit(payload.event, payload.data);
+        });
     }
 
     private onerror(e) {
-        if (this.options.debug) {
+        if (this._options.debug) {
             console.error('Broadcastt: Error occurred', e)
         }
     }
 
     private onclose(e) {
-        if (this.options.debug) {
+        if (this._options.debug) {
             console.log('Broadcastt: Disconnected', e)
         }
 
-        this.shared.socket_id = undefined;
-        this.shared.channels.forEach((channel) => {
-            if (channel.status !== "unsubscribed") {
-                channel.status = "none";
-            }
-        });
+        this._shared.socket_id = undefined;
 
-        if (this.reconnect < this.options.maximum_reconnects && (this.status === "connecting" || this.status === "connected")) {
+        if (3999 < this._errorCode && this._errorCode < 4100) {
+            return;
+        }
+
+        if (this._reconnect < this._options.maximum_reconnects && (this._status === 'connecting' || this._status === 'connected')) {
             const instance = this;
-            const timeout = (instance.reconnect++ * this.options.reconnect_interval);
+            let timeout: number;
+            if (4199 < this._errorCode && this._errorCode < 4200) {
+                timeout = 0;
+            } else {
+                timeout = (instance._reconnect * this._options.reconnect_interval);
+            }
+            instance._reconnect++;
             setTimeout(() => {
                 instance.init();
             }, timeout);
 
-            if (this.options.debug) {
+            if (this._options.debug) {
                 console.log('Broadcastt: Try to reconnect in ' + (timeout / Broadcastt.SECOND) + 's')
             }
         }
@@ -160,58 +165,100 @@ export default class Broadcastt {
         }
 
         this._activityTimer = setTimeout(() => {
-            this.shared.socket.send(JSON.stringify({
+            this._shared.socket.send(JSON.stringify({
                 event: 'broadcastt:ping',
                 data: {},
             }));
 
             this._activityTimer = setTimeout(() => {
-                this.shared.socket.close();
-            }, (this.options.pong_timeout * Broadcastt.SECOND))
-        }, (this.options.activity_timeout * Broadcastt.SECOND))
+                this._shared.socket.close();
+            }, (this._options.pong_timeout * Broadcastt.SECOND))
+        }, (this._options.activity_timeout * Broadcastt.SECOND))
     }
 
+    /**
+     * Returns a {@link Channel} object from the channel pool
+     *
+     * @param name
+     *
+     * @return null|Channel
+     */
     public get(name: string): Channel {
-        let channel = this.shared.channels.find((c) => c.name === name);
+        let channel = this._shared.channels.find((c) => c.name === name);
         if (channel) {
             return channel;
         }
         return null;
     }
 
+    /**
+     * Subscribe to a channel by defining a channel name.
+     *
+     * If the connection is not initialised yet the subscription will be executed after the initialisation.
+     *
+     * If you already subscribed by calling this methods you get back the same objects as you did on the first call.
+     *
+     * @param name
+     *
+     * @return Channel
+     */
     public join(name: string): Channel {
         let channel = this.get(name);
         if (channel === null) {
             if (name.startsWith('private-')) {
-                channel = new PrivateChannel(name, this.shared, this.options.auth_endpoint);
+                channel = new PrivateChannel(name, this._shared);
             } else if (name.startsWith('presence-')) {
-                channel = new PresenceChannel(name, this.shared, this.options.auth_endpoint);
+                channel = new PresenceChannel(name, this._shared);
             } else {
-                channel = new Channel(name, this.shared, this.options.auth_endpoint);
+                channel = new Channel(name, this._shared);
             }
-            this.shared.channels.push(channel);
+            this._shared.channels.push(channel);
         }
-        if (this.status === "connected") {
+        if (this._status === 'connected') {
             channel.subscribe();
-        } else {
-            channel.status = "none";
         }
         return channel;
     }
 
+    /**
+     * Subscribe to a private channel by defining the suffix of the channel name.
+     *
+     * @param name
+     *
+     * @return PrivateChannel
+     */
     public private(name: string): PrivateChannel {
         return this.join('private-' + name) as PrivateChannel;
     }
 
+    /**
+     * Subscribe to a presence channel by defining the suffix of the channel name.
+     *
+     * @param name
+     *
+     * @return PresenceChannel
+     */
     public presence(name: string): PresenceChannel {
         return this.join('presence-' + name) as PresenceChannel;
     }
 
+    /**
+     * Unsubscribe from a channel by defining a channel name.
+     *
+     * @param name
+     */
     public leave(name: string): void {
-        let channel = this.shared.channels.find((c) => c.name === name);
+        let channel = this._shared.channels.find((c) => c.name === name);
         if (!channel) {
             return;
         }
         channel.unsubscribe();
+    }
+
+    /**
+     * The key of the Broadcastt connection
+     */
+    get key(): string {
+        return this._key;
     }
 }
