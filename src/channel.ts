@@ -25,6 +25,8 @@ export default class Channel {
             event: 'broadcastt_internal:subscription_succeeded',
             callback: (e) => {
                 this._status = 'subscribed';
+
+                this.emit('broadcastt:subscription_succeeded');
             },
         });
     }
