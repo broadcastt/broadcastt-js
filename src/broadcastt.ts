@@ -87,9 +87,10 @@ export default class Broadcastt {
     }
 
     private onmessage(payload): void {
+        const data = JSON.parse(payload.data);
+
         switch (payload.event) {
             case 'broadcastt:connection_established':
-                const data = JSON.parse(payload.data);
                 this._options.activity_timeout = data.activity_timeout;
                 this._shared.socket_id = data.socket_id;
                 this.activityCheck();
@@ -107,9 +108,9 @@ export default class Broadcastt {
                 return;
             case 'broadcastt:error':
                 this._status = 'error';
-                this._errorCode = payload.data.code;
+                this._errorCode = data.code;
                 if (payload.data.code !== undefined) {
-                    this._shared.socket.close(payload.data.code, payload.data.message);
+                    this._shared.socket.close(data.code, data.message);
                 }
                 return;
         }
@@ -119,7 +120,7 @@ export default class Broadcastt {
                 return;
             }
 
-            channel.emit(payload.event, payload.data);
+            channel.emit(payload.event, data);
         });
     }
 
