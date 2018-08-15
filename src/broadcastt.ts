@@ -1,54 +1,48 @@
-import Channel from './channel';
-import PrivateChannel from './private-channel';
-import PresenceChannel from './presence-channel';
+import Channel from './channel/channel';
+import PrivateChannel from './channel/private-channel';
+import PresenceChannel from './channel/presence-channel';
+import Options from './options';
+import {BroadcasttStatus} from "./status/broadcastt-status";
+import {ChannelStatus} from "./status/channel-status";
 
 export default class Broadcastt {
     private static SECOND = 1000;
 
     private _key: string;
-    private _reconnect: number;
-    private _options: any;
-    private _status: string;
-    private _shared: {
-        csrf: string,
-        channels: Channel[],
-        socket: WebSocket,
-        socket_id: any,
-        auth_endpoint: string,
-    };
+    private _numberOfReconnects: number;
+    private _options: Options;
+    private _status: BroadcasttStatus;
+    private _channels: Channel[];
+    private _socket: WebSocket;
+    private _socketId: any;
     private _errorCode: number;
     private _activityTimer;
 
-    private static defaultOptions = {
+    private static defaultOptions: Options = {
         host: 'eu.broadcastt.xyz',
         port: 443,
-        reconnect_interval: 3 * Broadcastt.SECOND,
-        activity_timeout: 120,
-        pong_timeout: 30,
-        auth_endpoint: '/broadcasting/auth',
+        reconnectInterval: 3 * Broadcastt.SECOND,
+        activityTimeout: 120,
+        pongTimeout: 30,
+        authEndpoint: '/broadcasting/auth',
         csrf: null,
         encrypted: true,
         debug: false,
-        maximum_reconnects: 8,
+        maximumReconnects: 8,
     };
 
     constructor(key: string, options?: any) {
         this._key = key;
-        this._reconnect = 0;
+        this._numberOfReconnects = 0;
 
         this._options = Object.assign({}, Broadcastt.defaultOptions, options);
         if (options.port === undefined && options.encrypted === false) {
             this._options.port = 80;
         }
 
-        this._status = 'connecting';
-        this._shared = {
-            csrf: this._options.csrf,
-            channels: [],
-            socket: null,
-            socket_id: null,
-            auth_endpoint: this._options.auth_endpoint,
-        };
+        this._status = BroadcasttStatus.Connecting;
+        this._channels = [];
+        this._socket = null;
 
         this.init();
     }
@@ -58,64 +52,68 @@ export default class Broadcastt {
 
         const url = scheme + '://' + this._options.host + ':' + this._options.port + '/apps/' + this._key;
 
-        this._shared.socket = new WebSocket(url);
+        this._socketId = undefined;
+        this._errorCode = undefined;
 
-        this._shared.socket.onopen = (e) => {
-            this.onopen(e);
+        this._socket = new WebSocket(url);
+
+        this._socket.onopen = (e) => {
+            this.onOpen(e);
         };
 
-        this._shared.socket.onerror = (e) => {
-            this.onerror(e);
+        this._socket.onerror = (e) => {
+            this.onError(e);
         };
 
-        this._shared.socket.onmessage = (e) => {
+        this._socket.onmessage = (e) => {
             const payload = JSON.parse(e.data);
-            this.onmessage(payload);
+            this.onMessage(payload);
         };
 
-        this._shared.socket.onclose = (e) => {
-            this.onclose(e);
+        this._socket.onclose = (e) => {
+            this.onClose(e);
         };
     }
 
-    private onopen(e): void {
-        this._reconnect = 0;
+    private onOpen(e): void {
+        this._numberOfReconnects = 0;
 
         if (this._options.debug) {
             console.log('Broadcastt: Connected')
         }
     }
 
-    private onmessage(payload): void {
+    private onMessage(payload): void {
         const data = JSON.parse(payload.data);
 
         switch (payload.event) {
             case 'broadcastt:connection_established':
-                this._options.activity_timeout = data.activity_timeout;
-                this._shared.socket_id = data.socket_id;
+                this._options.activityTimeout = data.activity_timeout;
+                this._socketId = data.socket_id;
                 this.activityCheck();
-                this._status = 'connected';
 
-                this._shared.channels.forEach((channel) => {
-                    if (channel.status === 'unsubscribed') {
+                this._channels.forEach((channel) => {
+                    if (channel.status === ChannelStatus.Unsubscribed) {
                         return;
                     }
                     channel.subscribe();
                 });
+
+                this._status = BroadcasttStatus.Connected;
                 return;
             case 'broadcastt:pong':
                 this.activityCheck();
                 return;
             case 'broadcastt:error':
-                this._status = 'error';
+                this._status = BroadcasttStatus.Error;
                 this._errorCode = data.code;
                 if (payload.data.code !== undefined) {
-                    this._shared.socket.close(data.code, data.message);
+                    this._socket.close(data.code, data.message);
                 }
                 return;
         }
 
-        this._shared.channels.forEach((channel) => {
+        this._channels.forEach((channel) => {
             if (channel.name !== payload.channel) {
                 return;
             }
@@ -124,39 +122,40 @@ export default class Broadcastt {
         });
     }
 
-    private onerror(e) {
+    private onError(e) {
         if (this._options.debug) {
             console.error('Broadcastt: Error occurred', e)
         }
     }
 
-    private onclose(e) {
+    private onClose(e) {
         if (this._options.debug) {
             console.log('Broadcastt: Disconnected', e)
         }
-
-        this._shared.socket_id = undefined;
 
         if (3999 < this._errorCode && this._errorCode < 4100) {
             return;
         }
 
-        if (this._reconnect < this._options.maximum_reconnects && (this._status === 'connecting' || this._status === 'connected')) {
-            const instance = this;
-            let timeout: number;
-            if (4199 < this._errorCode && this._errorCode < 4200) {
-                timeout = 0;
-            } else {
-                timeout = (instance._reconnect * this._options.reconnect_interval);
-            }
-            instance._reconnect++;
-            setTimeout(() => {
-                instance.init();
-            }, timeout);
+        if (this._numberOfReconnects >= this._options.maximumReconnects) {
+            return;
+        }
+        this._numberOfReconnects++;
 
-            if (this._options.debug) {
-                console.log('Broadcastt: Try to reconnect in ' + (timeout / Broadcastt.SECOND) + 's')
-            }
+        this._status = BroadcasttStatus.Reconnecting;
+        let timeout: number;
+        if (4199 < this._errorCode && this._errorCode < 4200) {
+            timeout = 0;
+        } else {
+            timeout = (this._numberOfReconnects * this._options.reconnectInterval);
+        }
+
+        setTimeout(() => {
+            this.init();
+        }, timeout);
+
+        if (this._options.debug) {
+            console.log('Broadcastt: Try to reconnect in ' + (timeout / Broadcastt.SECOND) + 's')
         }
     }
 
@@ -166,26 +165,23 @@ export default class Broadcastt {
         }
 
         this._activityTimer = setTimeout(() => {
-            this._shared.socket.send(JSON.stringify({
-                event: 'broadcastt:ping',
-                data: {},
-            }));
+            this.send('broadcastt:ping', {});
 
             this._activityTimer = setTimeout(() => {
-                this._shared.socket.close();
-            }, (this._options.pong_timeout * Broadcastt.SECOND))
-        }, (this._options.activity_timeout * Broadcastt.SECOND))
+                this._socket.close();
+            }, (this._options.pongTimeout * Broadcastt.SECOND))
+        }, (this._options.activityTimeout * Broadcastt.SECOND))
     }
 
     /**
-     * Returns a {@link Channel} object from the channel pool
+     * Returns a {@link Channel} object from the channel pool where the name matches and null otherwise
      *
      * @param name
      *
      * @return null|Channel
      */
     public get(name: string): Channel {
-        let channel = this._shared.channels.find((c) => c.name === name);
+        let channel = this._channels.find((c) => c.name === name);
         if (channel) {
             return channel;
         }
@@ -207,15 +203,15 @@ export default class Broadcastt {
         let channel = this.get(name);
         if (channel === null) {
             if (name.startsWith('private-')) {
-                channel = new PrivateChannel(name, this._shared);
+                channel = new PrivateChannel(name, this);
             } else if (name.startsWith('presence-')) {
-                channel = new PresenceChannel(name, this._shared);
+                channel = new PresenceChannel(name, this);
             } else {
-                channel = new Channel(name, this._shared);
+                channel = new Channel(name, this);
             }
-            this._shared.channels.push(channel);
+            this._channels.push(channel);
         }
-        if (this._status === 'connected') {
+        if (this._status === BroadcasttStatus.Connected) {
             channel.subscribe();
         }
         return channel;
@@ -249,7 +245,7 @@ export default class Broadcastt {
      * @param name
      */
     public leave(name: string): void {
-        let channel = this._shared.channels.find((c) => c.name === name);
+        let channel = this._channels.find((c) => c.name === name);
         if (!channel) {
             return;
         }
@@ -257,9 +253,46 @@ export default class Broadcastt {
     }
 
     /**
+     * Sends the specified event to be transmitted to the server over the WebSocket connection
+     *
+     * @param event
+     * @param data
+     */
+    public send(event: string, data: any): void {
+        this._socket.send(JSON.stringify({
+            event: event,
+            data: data,
+        }))
+    }
+
+    /**
      * The key of the Broadcastt connection
      */
     get key(): string {
         return this._key;
+    }
+
+    get options(): Options {
+        return this._options;
+    }
+
+    get status(): BroadcasttStatus {
+        return this._status;
+    }
+
+    get channels(): Channel[] {
+        return this._channels;
+    }
+
+    get socketId(): any {
+        return this._socketId;
+    }
+
+    get errorCode(): number {
+        return this._errorCode;
+    }
+
+    get activityTimer() {
+        return this._activityTimer;
     }
 }

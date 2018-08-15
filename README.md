@@ -64,7 +64,7 @@ The library tries to connect to the given port. By design this used by our devel
 
 Default value: `443` or `80` depending on the value of `encrypted` option
 
-#### `reconnect_interval` (Number)
+#### `reconnectInterval` (Number)
 
 If anything goes wrong and the client disconnects, the library will try to reconnect. The delay between the reconnection attempts is determined by this and the number of retries.
 
@@ -72,13 +72,13 @@ Calculated `this * <number of retries>`. Which means the delay is incremented li
 
 Default value: `3000`
 
-#### `activity_timeout` (Number)
+#### `activityTimeout` (Number)
 
 Can only be used by our development team, because the value given by you will be overridden after connection with the value sent by the server.
 
 Default value: `120`
 
-#### `pong_timeout` (Number)
+#### `pongTimeout` (Number)
 
 Determines the acceptable timeout for the pong message sent by the server for a ping message.
 
@@ -86,7 +86,7 @@ May become deprecated in later versions because RFC 6455 has Control Frames for 
 
 Default value: `30`
 
-#### `auth_endpoint` (Number)
+#### `authEndpoint` (Number)
 
 Relative or absolute url to be called by this library for private and presence channel authentication.
 
@@ -110,7 +110,7 @@ If enabled the library will log events and method calls to the console.
 
 Default value: `false`
 
-#### `maximum_reconnects` (Number)
+#### `maximumReconnects` (Number)
 
 Sets the maximum number of reconnects in a row. So if any reconnect attempts is successful the counter will reset.
 
@@ -146,7 +146,7 @@ const channel = socket.presence('channel-name');
 
 If you already subscribed by calling these methods you get back the same objects as you did on the first call.
 
-Private and presence channels will make a request to `auth_endpoint` where you have to authenticate the subscription.
+Private and presence channels will make a request to `authEndpoint` where you have to authenticate the subscription.
 
 #### Unsubscribe
 
