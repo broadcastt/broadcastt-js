@@ -1,4 +1,5 @@
 import PrivateChannel from './private-channel';
+import {ChannelStatus} from "../status/channel-status";
 
 class Members {
     public me: {user_id: String, user_info: any};
@@ -21,7 +22,7 @@ export default class PresenceChannel extends PrivateChannel {
         this._listeners.push({
             event: 'broadcastt_internal:subscription_succeeded',
             callback: (e) => {
-                this._status = 'subscribed';
+                this._status = ChannelStatus.Subscribed;
                 this.members = Object.assign({}, this.members, e.presence);
 
                 this.emit('broadcastt:subscription_succeeded', this.members);
@@ -54,6 +55,10 @@ export default class PresenceChannel extends PrivateChannel {
         this.members.me = response;
 
         super.onAjaxSuccess(response);
+    }
+
+    protected onUnsubscribe() {
+        this.members = new Members();
     }
 
     /**

@@ -8,7 +8,7 @@ export default class PrivateChannel extends Channel {
      * @param event Name of the event
      * @param data Data of the event
      */
-    public send(event: string, data) {
+    public send(event: string, data: object) {
         if (event.startsWith('broadcastt:')) {
             console.warn('You can not send broadcastt events', event);
             return this;
@@ -17,21 +17,17 @@ export default class PrivateChannel extends Channel {
             return this;
         }
 
-        this._shared.socket.send(JSON.stringify({
-            event: event,
-            data: data,
-            channel: this.name
-        }));
+        this._broadcastt.send(event, data);
 
         return this;
     }
 
     protected onSubscribe(): void {
         const xmlHttp = new XMLHttpRequest();
-        xmlHttp.open('POST', this._shared.auth_endpoint);
+        xmlHttp.open('POST', this._broadcastt.options.authEndpoint);
         xmlHttp.setRequestHeader('Content-Type', 'application/json');
-        if (this._shared.csrf) {
-            xmlHttp.setRequestHeader('X-CSRF-TOKEN', this._shared.csrf);
+        if (this._broadcastt.options.csrf) {
+            xmlHttp.setRequestHeader('X-CSRF-TOKEN', this._broadcastt.options.csrf);
         }
         xmlHttp.onload = () => {
             if (xmlHttp.status === 200 && xmlHttp.responseText) {
@@ -42,7 +38,7 @@ export default class PrivateChannel extends Channel {
         let name = this.name;
 
         xmlHttp.send(JSON.stringify({
-            socket_id: this._shared.socket_id,
+            socket_id: this._broadcastt.socketId,
             channel_name: name
         }));
     }
@@ -51,10 +47,7 @@ export default class PrivateChannel extends Channel {
         const data = Object.assign({}, response);
         data.channel = this.name;
 
-        this._shared.socket.send(JSON.stringify({
-            event: 'broadcastt:subscribe',
-            data: data,
-        }));
+        this._broadcastt.send('broadcastt:subscribe', data);
     }
 
 }

@@ -1,22 +1,20 @@
+import Broadcastt from "../broadcastt";
+import {ChannelStatus} from "../status/channel-status";
+import {BroadcasttStatus} from "../status/broadcastt-status";
+
 export default class Channel {
 
     protected _name: string;
     protected _listeners: { event: String, callback: Function }[];
-    protected _status: string;
+    protected _status: ChannelStatus;
 
-    protected _shared: {
-        csrf: string,
-        channels: Channel[],
-        socket: WebSocket,
-        socket_id: any,
-        auth_endpoint: string,
-    };
+    protected _broadcastt: Broadcastt;
 
-    constructor(channel, shared) {
+    constructor(channel: string, broadcastt: Broadcastt) {
         this._name = channel;
-        this._shared = shared;
+        this._broadcastt = broadcastt;
         this._listeners = [];
-        this._status = 'none';
+        this._status = ChannelStatus.None;
         this.registerDefaultListeners();
     }
 
@@ -24,7 +22,7 @@ export default class Channel {
         this._listeners.push({
             event: 'broadcastt_internal:subscription_succeeded',
             callback: (e) => {
-                this._status = 'subscribed';
+                this._status = ChannelStatus.Pending;
 
                 this.emit('broadcastt:subscription_succeeded');
             },
@@ -35,12 +33,15 @@ export default class Channel {
      * Subscribe to this channel object
      */
     public subscribe(): this {
-        if (this._status === 'pending' || this._status === 'subscribed') {
+        if (this._broadcastt.status !== BroadcasttStatus.Reconnecting
+            && (this._status === ChannelStatus.Pending || this._status === ChannelStatus.Subscribed)) {
             return this;
         }
-        this._status = 'pending';
-        if (this._shared.channels.indexOf(this) === -1) {
-            this._shared.channels.push(this);
+
+        this._status = ChannelStatus.Pending;
+
+        if (this._broadcastt.channels.indexOf(this) === -1) {
+            this._broadcastt.channels.push(this);
         }
 
         this.onSubscribe();
@@ -49,35 +50,29 @@ export default class Channel {
     }
 
     protected onSubscribe() {
-        this._shared.socket.send(JSON.stringify({
-            event: 'broadcastt:subscribe',
-            data: {
-                channel: this._name,
-            },
-        }));
+        this._broadcastt.send('broadcastt:subscribe', {
+            channel: this._name,
+        });
     }
 
     /**
      * Unsubscribe from this channel object
      */
     public unsubscribe(): void {
-        if (this._status !== 'subscribed' && this._status !== 'none') {
+        if (this._status === ChannelStatus.None || this._status === ChannelStatus.Unsubscribed) {
             return;
         }
-        this._status = 'unsubscribed';
+        this._status = ChannelStatus.Unsubscribed;
 
-        if (this._status === 'none') {
-            return;
-        }
-
-        this._shared.socket.send(JSON.stringify({
-            event: 'broadcastt:unsubscribe',
-            data: {
-                channel: this._name,
-            },
-        }));
+        this._broadcastt.send('broadcastt:unsubscribe', {
+            channel: this._name,
+        });
 
         return;
+    }
+
+    protected onUnsubscribe() {
+        //
     }
 
     /**
@@ -155,9 +150,9 @@ export default class Channel {
     }
 
     /**
-     * Status of the channel
+     * ChannelStatus of the channel
      */
-    get status(): string {
+    get status(): ChannelStatus {
         return this._status;
     }
 }
