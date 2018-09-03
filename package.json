@@ -1,6 +1,6 @@
 {
   "name": "broadcastt-js",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "JavaScript library for Broadcastt WebSocket Protocol",
   "main": "dist/broadcastt.js",
   "license": "MIT",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nerg4l/broadcastt-js"
+    "url": "https://github.com/broadcastt/broadcastt-js"
   },
   "keywords": [
     "broadcastt",
