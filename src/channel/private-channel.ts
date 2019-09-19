@@ -1,4 +1,5 @@
 import Channel from './channel';
+import Cookies from '../helpers/cookies';
 
 export default class PrivateChannel extends Channel {
 
@@ -28,6 +29,12 @@ export default class PrivateChannel extends Channel {
         xmlHttp.setRequestHeader('Content-Type', 'application/json');
         if (this._broadcastt.options.csrf) {
             xmlHttp.setRequestHeader('X-CSRF-TOKEN', this._broadcastt.options.csrf);
+        } else {
+            const cookies = new Cookies();
+            const token = cookies.read('XSRF-TOKEN');
+            if (token) {
+                xmlHttp.setRequestHeader('X-XSRF-TOKEN', this._broadcastt.options.csrf);
+            }
         }
         xmlHttp.onload = () => {
             if (xmlHttp.status === 200 && xmlHttp.responseText) {
