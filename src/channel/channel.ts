@@ -21,7 +21,7 @@ export default class Channel {
     protected registerDefaultListeners() {
         this._listeners.push({
             event: 'broadcastt_internal:subscription_succeeded',
-            callback: (e) => {
+            callback: (e: any) => {
                 this._status = ChannelStatus.Pending;
 
                 this.emit('broadcastt:subscription_succeeded');
@@ -107,8 +107,8 @@ export default class Channel {
      * @param event Name of the event
      * @param callback The callback which will be used to filter out a specific callback
      */
-    public unbind(event: string = null, callback: Function = null): this {
-        if (event !== null && event.startsWith('broadcastt_internal:')) {
+    public unbind(event: string | null = null, callback: Function | null = null): this {
+        if (event && event.startsWith('broadcastt_internal:')) {
             console.warn('You can not unbind internal events', event);
             return this;
         }

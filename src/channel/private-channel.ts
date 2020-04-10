@@ -1,5 +1,6 @@
 import Channel from './channel';
 import Cookies from '../helpers/cookies';
+import Broadcastt from '../broadcastt';
 
 export default class PrivateChannel extends Channel {
 
@@ -25,7 +26,8 @@ export default class PrivateChannel extends Channel {
 
     protected onSubscribe(): void {
         const xmlHttp = new XMLHttpRequest();
-        xmlHttp.open('POST', this._broadcastt.options.authEndpoint);
+        const authEndpoint = this._broadcastt.options.authEndpoint ?? Broadcastt.defaultOptions.authEndpoint;
+        xmlHttp.open('POST', authEndpoint);
         xmlHttp.setRequestHeader('Content-Type', 'application/json');
         if (this._broadcastt.options.csrf) {
             xmlHttp.setRequestHeader('X-CSRF-TOKEN', this._broadcastt.options.csrf);
@@ -33,7 +35,7 @@ export default class PrivateChannel extends Channel {
             const cookies = new Cookies();
             const token = cookies.read('XSRF-TOKEN');
             if (token) {
-                xmlHttp.setRequestHeader('X-XSRF-TOKEN', this._broadcastt.options.csrf);
+                xmlHttp.setRequestHeader('X-XSRF-TOKEN', token);
             }
         }
         xmlHttp.onload = () => {
@@ -50,7 +52,7 @@ export default class PrivateChannel extends Channel {
         }));
     }
 
-    protected onAjaxSuccess(response): void {
+    protected onAjaxSuccess(response: any): void {
         const data = Object.assign({}, response);
         data.channel = this.name;
 

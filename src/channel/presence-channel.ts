@@ -1,27 +1,31 @@
 import PrivateChannel from './private-channel';
-import {ChannelStatus} from "../status/channel-status";
+import {ChannelStatus} from '../status/channel-status';
+import Broadcastt from '../broadcastt';
 
-class Members {
-    public me: {user_id: String, user_info: any};
-    public count: number;
-    public ids: any[];
-    public hash: any;
+interface Member {
+    user_id: string;
+    user_info: any;
+}
+
+interface Members {
+    me: Member;
+    count: number;
+    ids: any[];
+    hash: any;
 }
 
 export default class PresenceChannel extends PrivateChannel {
 
-    public members: Members;
+    public members?: Members;
 
-    constructor(channel, shared) {
+    constructor(channel: string, shared: Broadcastt) {
         super(channel, shared);
-
-        this.members = new Members();
     }
 
     protected registerDefaultListeners() {
         this._listeners.push({
             event: 'broadcastt_internal:subscription_succeeded',
-            callback: (e) => {
+            callback: (e: any) => {
                 this._status = ChannelStatus.Subscribed;
                 this.members = Object.assign({}, this.members, e.presence);
 
@@ -31,10 +35,12 @@ export default class PresenceChannel extends PrivateChannel {
 
         this._listeners.push({
             event: 'broadcastt_internal:member_added',
-            callback: (e) => {
-                this.members.count++;
-                this.members.ids.push(e.user_id);
-                this.members.hash[e.user_id] = e.user_info;
+            callback: (e: Member) => {
+                if (this.members) {
+                    this.members.count++;
+                    this.members.ids.push(e.user_id);
+                    this.members.hash[e.user_id] = e.user_info;
+                }
 
                 this.emit('broadcastt:member_added', Object.assign({}, e), this.members);
             },
@@ -42,23 +48,27 @@ export default class PresenceChannel extends PrivateChannel {
 
         this._listeners.push({
             event: 'broadcastt_internal:member_removed',
-            callback: (e) => {
-                this.members.ids = this.members.ids.filter((i) => i !== e.user_id);
-                delete this.members.hash[e.user_id];
+            callback: (e: Member) => {
+                if (this.members) {
+                    this.members.ids = this.members.ids.filter((i) => i !== e.user_id);
+                    delete this.members.hash[e.user_id];
+                }
 
                 this.emit('broadcastt:member_removed', Object.assign({}, e), this.members);
             },
         });
     }
 
-    protected onAjaxSuccess(response) {
-        this.members.me = response;
+    protected onAjaxSuccess(response: Member) {
+        if (this.members) {
+            this.members.me = response;
+        }
 
         super.onAjaxSuccess(response);
     }
 
     protected onUnsubscribe() {
-        this.members = new Members();
+        this.members = undefined;
     }
 
     /**
@@ -69,7 +79,7 @@ export default class PresenceChannel extends PrivateChannel {
      *
      * @param callback
      */
-    public here(callback: (members) => any) {
+    public here(callback: (members: Members) => any) {
         this.bind('broadcastt:subscription_succeeded', callback);
 
         return this;
@@ -83,7 +93,7 @@ export default class PresenceChannel extends PrivateChannel {
      *
      * @param callback
      */
-    public joining(callback: (e, members) => any) {
+    public joining(callback: (e: Member, members: Members) => any) {
         this.bind('broadcastt:member_added', callback);
 
         return this;
@@ -97,7 +107,7 @@ export default class PresenceChannel extends PrivateChannel {
      *
      * @param callback
      */
-    public leaving(callback: (e, members) => any) {
+    public leaving(callback: (e: Member, members: Members) => any) {
         this.bind('broadcastt:member_removed', callback);
 
         return this;

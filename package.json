@@ -2,10 +2,12 @@
   "name": "broadcastt-js",
   "version": "0.2.3",
   "description": "JavaScript library for Broadcastt WebSocket Protocol",
-  "main": "dist/broadcastt.js",
+  "browser": "./dist/web/broadcastt.js",
+  "types": "./dist/src/broadcastt.d.ts",
   "license": "MIT",
   "scripts": {
     "compile": "./node_modules/.bin/rollup -c",
+    "postcompile": "tsc --emitDeclarationOnly --declaration --outDir ./dist/src",
     "prepare": "npm run compile"
   },
   "repository": {
@@ -24,16 +26,18 @@
     "name": "László Görög"
   },
   "homepage": "https://broadcastt.xyz/",
-  "engines": {
-    "node": ">6.0.*"
-  },
   "devDependencies": {
-    "@types/node": "^6.0.85",
-    "babel-plugin-transform-object-assign": "^6.8.0",
-    "babel-preset-es2015-rollup": "^3.0.0",
-    "babel-preset-stage-2": "^6.5.0",
-    "rollup-plugin-babel": "^2.4.0",
-    "rollup-plugin-typescript": "^0.7.5",
-    "rollup": "^0.31.0"
+    "@babel/core": "^7.9.0",
+    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/preset-env": "^7.9.5",
+    "@babel/preset-typescript": "^7.9.0",
+    "@rollup/plugin-json": "^4.0.2",
+    "@rollup/plugin-node-resolve": "^7.1.1",
+    "@rollup/plugin-typescript": "^4.0.0",
+    "@types/ws": "^6.0.1",
+    "rollup-plugin-babel": "^4.3.2",
+    "rollup": "^2.4.0",
+    "tslint": "^6.1.1",
+    "typescript": "^3.8.3"
   }
 }

@@ -1,15 +1,24 @@
-import typescript from 'rollup-plugin-typescript';
+import typescript from '@rollup/plugin-typescript';
 import babel from 'rollup-plugin-babel';
+import json from "@rollup/plugin-json";
+import resolve from "@rollup/plugin-node-resolve";
 
-export default {
-  entry: './src/broadcastt.ts',
-  dest: './dist/broadcastt.js',
+module.exports = {
+  input: './src/broadcastt.ts',
+  output: {
+    format: 'umd',
+    name: 'Broadcastt',
+    file: './dist/web/broadcastt.js',
+  },
   plugins: [
+    // Include external modules in bundle
+    resolve(),
+    // Read values from json (eg. package.json)
+    json(),
     typescript(),
     babel({
       exclude: 'node_modules/**',
-      presets: ['es2015-rollup', 'stage-2'],
-      plugins: ['transform-object-assign']
-    })
-  ]
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    }),
+  ],
 }

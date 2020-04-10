@@ -6,56 +6,63 @@ import {BroadcasttStatus} from "./status/broadcastt-status";
 import {ChannelStatus} from "./status/channel-status";
 
 export default class Broadcastt {
+
     private static SECOND = 1000;
 
-    private _key: string;
-    private _numberOfReconnects: number;
-    private _options: Options;
-    private _status: BroadcasttStatus;
-    private _channels: Channel[];
-    private _socket: WebSocket;
-    private _socketId: any;
-    private _errorCode: number;
-    private _activityTimer;
-
-    private static defaultOptions: Options = {
+    public static defaultOptions: any = {
         host: 'eu.broadcastt.xyz',
         port: 443,
         reconnectInterval: 3 * Broadcastt.SECOND,
         activityTimeout: 120,
         pongTimeout: 30,
         authEndpoint: '/broadcasting/auth',
-        csrf: null,
+        csrf: '',
         encrypted: true,
         debug: false,
         maximumReconnects: 8,
     };
 
-    constructor(key: string, options?: any) {
+    private _key: string;
+    private _numberOfReconnects: number;
+    private _options: Options;
+    private _status: BroadcasttStatus;
+    private _channels: Channel[];
+    private _url: string;
+    private _socket: WebSocket;
+    private _socketId: any;
+    private _errorCode: number | null;
+    private _activityTimer: any;
+
+    constructor(key: string, options?: Options) {
         this._key = key;
         this._numberOfReconnects = 0;
 
         this._options = Object.assign({}, Broadcastt.defaultOptions, options);
-        if (options.port === undefined && options.encrypted === false) {
+        if (options && options.port === undefined && options.encrypted === false) {
             this._options.port = 80;
         }
 
+        const scheme = this._options.encrypted ? 'wss' : 'ws';
+        this._url = scheme + '://' + this._options.host + ':' + this._options.port + '/apps/' + this._key;
+
         this._status = BroadcasttStatus.Connecting;
         this._channels = [];
-        this._socket = null;
+        this._socket = new WebSocket(this._url);
 
-        this.init();
+        this._socketId = null;
+        this._errorCode = null;
+        this._activityTimer = null;
+
+        this.reset();
     }
 
-    protected init(): void {
-        const scheme = this._options.encrypted ? 'wss' : 'ws';
+    protected reset(): void {
+        this._socketId = null;
+        this._errorCode = null;
 
-        const url = scheme + '://' + this._options.host + ':' + this._options.port + '/apps/' + this._key;
-
-        this._socketId = undefined;
-        this._errorCode = undefined;
-
-        this._socket = new WebSocket(url);
+        if (this._socket.readyState === WebSocket.CLOSED || this._socket.readyState === WebSocket.CLOSING) {
+            this._socket = new WebSocket(this._url);
+        }
 
         this._socket.onopen = (e) => {
             this.onOpen(e);
@@ -75,7 +82,7 @@ export default class Broadcastt {
         };
     }
 
-    private onOpen(e): void {
+    private onOpen(e: any): void {
         this._numberOfReconnects = 0;
 
         if (this._options.debug) {
@@ -83,7 +90,7 @@ export default class Broadcastt {
         }
     }
 
-    private onMessage(payload): void {
+    private onMessage(payload: any): void {
         const data = JSON.parse(payload.data);
 
         switch (payload.event) {
@@ -122,36 +129,38 @@ export default class Broadcastt {
         });
     }
 
-    private onError(e) {
+    private onError(e: any) {
         if (this._options.debug) {
             console.error('Broadcastt: Error occurred', e)
         }
     }
 
-    private onClose(e) {
+    private onClose(e: any) {
         if (this._options.debug) {
             console.log('Broadcastt: Disconnected', e)
         }
 
-        if (3999 < this._errorCode && this._errorCode < 4100) {
+        if (this._errorCode && 3999 < this._errorCode && this._errorCode < 4100) {
             return;
         }
 
-        if (this._numberOfReconnects >= this._options.maximumReconnects) {
+        const maximumReconnects = this._options.maximumReconnects ?? Broadcastt.defaultOptions.maximumReconnects;
+        if (this._numberOfReconnects >= maximumReconnects) {
             return;
         }
         this._numberOfReconnects++;
 
         this._status = BroadcasttStatus.Reconnecting;
         let timeout: number;
-        if (4199 < this._errorCode && this._errorCode < 4200) {
+        if (this._errorCode && 4199 < this._errorCode && this._errorCode < 4200) {
             timeout = 0;
         } else {
-            timeout = (this._numberOfReconnects * this._options.reconnectInterval);
+            const reconnectInterval = this._options.reconnectInterval ?? Broadcastt.defaultOptions.reconnectInterval;
+            timeout = (this._numberOfReconnects * reconnectInterval);
         }
 
         setTimeout(() => {
-            this.init();
+            this.reset();
         }, timeout);
 
         if (this._options.debug) {
@@ -164,13 +173,15 @@ export default class Broadcastt {
             clearTimeout(this._activityTimer);
         }
 
+        const activityTimeout = this._options.activityTimeout ?? Broadcastt.defaultOptions.activityTimeout;
         this._activityTimer = setTimeout(() => {
             this.send('broadcastt:ping', {});
 
+            const pongTimeout = this._options.pongTimeout ?? Broadcastt.defaultOptions.pongTimeout;
             this._activityTimer = setTimeout(() => {
                 this._socket.close();
-            }, (this._options.pongTimeout * Broadcastt.SECOND))
-        }, (this._options.activityTimeout * Broadcastt.SECOND))
+            }, (pongTimeout * Broadcastt.SECOND))
+        }, (activityTimeout * Broadcastt.SECOND))
     }
 
     /**
@@ -180,7 +191,7 @@ export default class Broadcastt {
      *
      * @return null|Channel
      */
-    public get(name: string): Channel {
+    public get(name: string): Channel | null {
         let channel = this._channels.find((c) => c.name === name);
         if (channel) {
             return channel;
@@ -288,11 +299,11 @@ export default class Broadcastt {
         return this._socketId;
     }
 
-    get errorCode(): number {
+    get errorCode(): number | null {
         return this._errorCode;
     }
 
-    get activityTimer() {
+    get activityTimer(): any {
         return this._activityTimer;
     }
 }
