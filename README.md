@@ -10,7 +10,7 @@ Realtime web applications are the future. [Broadcastt](https://broadcastt.xyz/) 
 >
 > Major version zero (0.y.z) is for initial development. Anything may change at any time. The public API should not be considered stable.
 
-This library is compatible with web browsers (compatible with RFC 6455) and Node.js.
+This library is compatible with web browsers (compatible with RFC 6455).
 
 Browser compatibility ([source](https://en.wikipedia.org/wiki/WebSocket#Browser_implementation)):
 

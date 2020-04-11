@@ -3,27 +3,16 @@
         "module": "es6",
         "target": "es6",
         "moduleResolution": "node",
-        "removeComments": true,
-        "isolatedModules": false,
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "declaration": false,
-        "noImplicitAny": false,
-        "noImplicitUseStrict": false,
-        "noLib": false,
-        "preserveConstEnums": true,
-        "suppressImplicitAnyIndexErrors": true,
-        "pretty": true,
-        "outDir": "build"
+        "resolveJsonModule": true,
+        "strict": true,
+        "esModuleInterop": true,
+        "pretty": true
     },
     "exclude": [
-        "node_modules/*",
-        "typings/browser",
-        "typings/browser.d.ts"
+        "node_modules/*"
     ],
-    "files": [
-      "typings/index.d.ts",
-      "src/broadcastt.ts"
+    "include": [
+        "src/**/*"
     ],
     "compileOnSave": false,
     "buildOnSave": false,
