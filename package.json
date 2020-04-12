@@ -8,7 +8,8 @@
   "scripts": {
     "compile": "./node_modules/.bin/rollup -c",
     "postcompile": "tsc --emitDeclarationOnly --declaration --outDir ./dist/src",
-    "prepare": "npm run compile"
+    "prepare": "npm run compile",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -34,7 +35,9 @@
     "@rollup/plugin-json": "^4.0.2",
     "@rollup/plugin-node-resolve": "^7.1.1",
     "@rollup/plugin-typescript": "^4.0.0",
+    "@types/jest": "^24.0.13",
     "@types/ws": "^6.0.1",
+    "jest": "^24.8.0",
     "rollup-plugin-babel": "^4.3.2",
     "rollup": "^2.4.0",
     "tslint": "^6.1.1",
